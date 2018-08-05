@@ -1,0 +1,7 @@
+print('Interest calculator:')
+amount = float(input('Principal amount ?'))
+roi = float(input('Interest rate ?'))
+years = int(input('Duration (no. of years) ?'))
+total = amount * pow(1+roi,years)
+interest = total - amount
+print('\nInterest = %0.2f' %interest)
