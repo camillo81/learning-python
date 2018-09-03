@@ -44,14 +44,14 @@
 \bigskip
 
 \begin{tikzpicture}[align=center, node distance=4cm, auto]
-  \node (H1) {$H^1$};
+  \node (H1) {$H^1_0$};
   \node (V0) [below=2.5cm of H1] {$V_0$};
   \node (L2) [right of=H1] {$L^2$};
   \node (V1) [below=2.5cm of L2] {$V_1$};
-  \draw[->] (H1) to node {$\grad$} (L2);
+  \draw[->] (H1) to node {$\pder{}{x}$} (L2);
   \draw[->] (H1) to node [swap] {$\Pi_0$} (V0);
   \draw[->] (L2) to node [swap] {$\Pi_1$} (V1);
-  \draw[->] (V0) to node [swap] {$\grad$} (V1);
+  \draw[->] (V0) to node [swap] {$\pder{}{x}$} (V1);
 \end{tikzpicture}
 
 
