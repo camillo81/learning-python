@@ -7,9 +7,11 @@
            The class for 1D Lagrange shape functions on the interval [-1,1].
        lag_assemb : function
            Computes the mass and stiffness matrices from Lagrange basis functions.
-       L2prod_shape : function
+       lag_L2prod : function
            Computes the L2 scalar product of a given function with each element 
            of a basis defined from shape functions.
+       lag_fun : function
+           Given a coefficient vector, returns a function in the space spanned by a Lagrange basis.
     
 '''
 
@@ -124,7 +126,7 @@ def lag_assemb(el_b, mass_eta, stiff_eta, bcs=2):
         return
 
     # bulk:
-    for i in np.arange(1, Nel - 1):
+    for i in range(1, Nel - 1):
         mass[index:index + d + 1, index:index + d + 1] += (el_b[i + 1] - el_b[i])/2*mass_eta[:, :] 
         stiff[index:index + d + 1, index:index + d + 1] += 2/(el_b[i + 1] - el_b[i])*stiff_eta[:, :] 
         index += d
@@ -141,4 +143,171 @@ def lag_assemb(el_b, mass_eta, stiff_eta, bcs=2):
     return Nel, mass, stiff
             
     
-def L2prod_shape():
+def lag_L2prod(fun, eta, el_b, bcs=2):
+    '''Computes the L2 scalar product of a function with each element of a Lagrange basis
+    defined from shape functions.
+    
+    Parameters:
+        fun : function
+            The input function, for example a 'lambda'-function.
+        eta : list
+            List elements are the shape functions in 'poly1d' format.
+        el_b : ndarray
+            1D array of element interfaces from left to right including the boundaries. 
+        bcs : int
+            Specifies the boundary conditions. DEFAULT = 2 which stands for Dirichlet.
+            1 stands for periodic.
+            
+    Returns:
+        Nel : int
+            The number of elements, Nel = len(el_b) - 1. 
+        funbar : ndarray
+            1D array of scalar products of fun with the basis functions.
+        Nbase : int
+            The number of basis functions, Nbase = np.size(fun_bar)
+    '''
+    
+    from scipy.integrate import fixed_quad 
+    
+    Nel = len(el_b) - 1
+    # number of elements
+    
+    m = len(eta)
+    # number of shape functions
+    
+    d = m - 1
+    # polynomial degree
+    
+    Ntot = Nel*m - (Nel - 1)
+    Nbase = Ntot - bcs
+    # number of basis functions
+    
+    funbar = np.zeros(Nbase)
+    # initiate output vector
+    
+    index = 0
+    # index of the basis function
+    
+    # left boundary:
+    i = 0
+    for j in range(1, m):
+            
+        fun1 = lambda s: fun( el_b[i] + (s + 1)/2*(el_b[i + 1] - el_b[i]) )
+        # function fun transformed to the reference element [-1, 1]
+        fun2 = lambda s: np.polyval(eta[j], s)
+        # shape function
+        
+        fun12 = lambda s: fun1(s)*fun2(s)
+        intval, foo = fixed_quad(fun12, -1, 1)
+        funbar[index] += (el_b[i + 1] - el_b[i])/2*intval
+        # integral
+        
+        if j != d:
+            index += 1
+        # If it is the last shape function (j = d), the index rests the same
+        # and the subsequent integral is added at the same position in funbar.
+    
+    # bulk:
+    for i in range(1, Nel - 1): 
+        for j in range(m):
+            
+            fun1 = lambda s: fun( el_b[i] + (s + 1)/2*(el_b[i + 1] - el_b[i]) )
+            # function fun transformed to the reference element [-1, 1]
+            fun2 = lambda s: np.polyval(eta[j], s)
+            # shape function
+            
+            fun12 = lambda s: fun1(s)*fun2(s)
+            intval, foo = fixed_quad(fun12, -1, 1)
+            funbar[index] += (el_b[i + 1] - el_b[i])/2*intval
+            # integral
+            if j != d:
+                index += 1
+        
+    # right boundary:
+    i = Nel - 1
+    for j in range(d):
+            
+        fun1 = lambda s: fun( el_b[i] + (s + 1)/2*(el_b[i + 1] - el_b[i]) )
+        # function fun transformed to the reference element [-1, 1]
+        fun2 = lambda s: np.polyval(eta[j], s)
+        # shape function
+        
+        fun12 = lambda s: fun1(s)*fun2(s)
+        intval, foo = fixed_quad(fun12, -1, 1)
+        funbar[index] += (el_b[i + 1] - el_b[i])/2*intval
+        # integral
+        if j != d:
+                index += 1
+    
+    return Nel, funbar, Nbase
+
+
+def lag_fun(cvec, eta, el_b, bcs=2):
+    '''Given a coefficient vector, returns a function in the space spanned by a Lagrange basis.
+    
+        Parameters:
+            cvec : ndarray
+                Coefficient vector.
+            eta : list
+                List elements are the shape functions in 'poly1d' format.
+            el_b : ndarray
+                1D array of element interfaces from left to right including the boundaries. 
+            bcs : int
+                Specifies the boundary conditions. DEFAULT = 2 which stands for Dirichlet.
+                1 stands for periodic.
+                
+        Returns:
+            Nel : int
+                The number of elements, Nel = len(el_b) - 1. 
+            fun : function
+                Function defined on [el_b[0], el_b[-1]].            
+    '''
+    
+    Nel = len(el_b) - 1
+    # number of elements
+    
+    m = len(eta)
+    # number of shape functions
+    
+    d = m - 1
+    # polynomial degree
+    
+    Ntot = Nel*m - (Nel - 1)
+    Nbase = Ntot - bcs
+    # number of basis functions
+    
+    def fun(x):
+        '''Function in a finite dimensional space spanned by Lagrange basis functions,
+        created with fembase.lag_fun.
+        '''
+        
+        hist, bin_edges = np.histogram(x, bins=el_b)
+        el = np.nonzero(hist)
+        el = el[0][0] # extract the numeric value from tuple
+        # element in which x is located
+        
+        funval = 0
+        if el == 0:
+            index = 0
+            for i in range(1, m): 
+                funval += ( cvec[index]*np.polyval( eta[i], 2*(x - el_b[el])
+                                                    /(el_b[el + 1] - el_b[el]) - 1 ) )
+                index += 1
+                
+        elif el == Nel - 1:
+            index = (Nel - 1)*d - 1
+            for i in range(d): 
+                funval += ( cvec[index]*np.polyval( eta[i], 2*(x - el_b[el])
+                                                    /(el_b[el + 1] - el_b[el]) - 1 ) )
+                index += 1
+                
+        else:
+            index = el*d - 1
+            for i in range(m): 
+                funval += ( cvec[index]*np.polyval( eta[i], 2*(x - el_b[el])
+                                                    /(el_b[el + 1] - el_b[el]) - 1 ) )
+                index += 1
+                
+        return funval
+    
+    return Nel, fun
