@@ -12,7 +12,6 @@
            of a basis defined from shape functions.
        lag_fun : function
            Given a coefficient vector, returns a function in the space spanned by a Lagrange basis.
-    
 '''
 
 import numpy as np
@@ -37,9 +36,9 @@ class LagrangeShape:
         self.Deta : list
             List elements are the derivatives of the shape functions in 'poly1d' format.  
         self.mass : ndarray
-            Mass matrix.  
+            Local mass matrix.  
         self.stiff : ndarray
-            Stiffness matrix.
+            Local stiffness matrix.
     '''
     
     kind = 'lagrange'
@@ -76,7 +75,7 @@ class LagrangeShape:
                 
                 
 def lag_assemb(el_b, mass_eta, stiff_eta, bcs=2):
-    ''' Computes the mass and stiffness matrices from Lagrange basis functions.
+    ''' Computes the global mass and stiffness matrices from Lagrange basis functions.
     
     Parameters:
         el_b : ndarray
@@ -92,6 +91,8 @@ def lag_assemb(el_b, mass_eta, stiff_eta, bcs=2):
     Returns:
         Nel : int
             The number of elements, Nel = len(el_b) - 1.
+        Nbase : int
+            Number of basis functions, Nbase = np.size(fun_bar)
         mass : ndarray
             The mass matrix. If m = np.size(mass_eta[:, 0]) denotes the size of the local mass matrix, 
             then np.size(mass[:, 0]) = Nel*m - (Nel - 1) - bcs.
@@ -108,12 +109,15 @@ def lag_assemb(el_b, mass_eta, stiff_eta, bcs=2):
     d = m - 1
     # polynomial degree
     
-    Ntot = Nel*m - (Nel - 1)
-    NN = Ntot - bcs
-    # number of degrees of freedom (Ntot including the boundary)
+    Ntot = Nel*m
+    # number of degrees of freedom (including the boundary) 
+    Ntot -= (Nel - 1)
+    # subtracted the number of shared degrees of freedom (interior interfaces)
+    Nbase = Ntot - bcs
+    # number of basis functions (for the respective boundary conditions)
     
-    mass = np.zeros((NN, NN))
-    stiff = np.zeros((NN, NN))
+    mass = np.zeros((Nbase, Nbase))
+    stiff = np.zeros((Nbase, Nbase))
     # initiate mass and stiffness matrix
 
     # left boundary:
@@ -140,7 +144,7 @@ def lag_assemb(el_b, mass_eta, stiff_eta, bcs=2):
         print('Type of boundary condition not yet implemented, exiting ...')
         return
     
-    return Nel, mass, stiff
+    return Nel, Nbase, mass, stiff
             
     
 def lag_L2prod(fun, eta, el_b, bcs=2):
@@ -161,10 +165,10 @@ def lag_L2prod(fun, eta, el_b, bcs=2):
     Returns:
         Nel : int
             The number of elements, Nel = len(el_b) - 1. 
+        Nbase : int
+            Number of basis functions, Nbase = np.size(fun_bar)
         funbar : ndarray
             1D array of scalar products of fun with the basis functions.
-        Nbase : int
-            The number of basis functions, Nbase = np.size(fun_bar)
     '''
     
     from scipy.integrate import fixed_quad 
@@ -178,9 +182,12 @@ def lag_L2prod(fun, eta, el_b, bcs=2):
     d = m - 1
     # polynomial degree
     
-    Ntot = Nel*m - (Nel - 1)
+    Ntot = Nel*m
+    # number of degrees of freedom (including the boundary) 
+    Ntot -= (Nel - 1)
+    # subtracted the number of shared degrees of freedom (interior interfaces)
     Nbase = Ntot - bcs
-    # number of basis functions
+    # number of basis functions (for the respective boundary conditions)
     
     funbar = np.zeros(Nbase)
     # initiate output vector
@@ -239,7 +246,7 @@ def lag_L2prod(fun, eta, el_b, bcs=2):
         if j != d:
                 index += 1
     
-    return Nel, funbar, Nbase
+    return Nel, Nbase, funbar
 
 
 def lag_fun(cvec, eta, el_b, bcs=2):
@@ -259,8 +266,11 @@ def lag_fun(cvec, eta, el_b, bcs=2):
         Returns:
             Nel : int
                 The number of elements, Nel = len(el_b) - 1. 
+            Nbase : int
+                Number of basis functions, Nbase = np.size(fun_bar).
             fun : function
-                Function defined on [el_b[0], el_b[-1]].            
+                Function defined on [el_b[0], el_b[-1]].    
+            
     '''
     
     Nel = len(el_b) - 1
@@ -272,42 +282,69 @@ def lag_fun(cvec, eta, el_b, bcs=2):
     d = m - 1
     # polynomial degree
     
-    Ntot = Nel*m - (Nel - 1)
+    Ntot = Nel*m
+    # number of degrees of freedom (including the boundary) 
+    Ntot -= (Nel - 1)
+    # subtracted the number of shared degrees of freedom (interior interfaces)
     Nbase = Ntot - bcs
-    # number of basis functions
+    # number of basis functions (for the respective boundary conditions)
+    
+    el_b[-1] += 1e-8
     
     def fun(x):
         '''Function in a finite dimensional space spanned by Lagrange basis functions,
         created with fembase.lag_fun.
+        
+        Parameters:
+            x : ndarray
+                Array of arguments passed to the function f.
+            
+        Returns:
+            funval : ndarray
+                f(x), same size as x.
         '''
         
-        hist, bin_edges = np.histogram(x, bins=el_b)
-        el = np.nonzero(hist)
-        el = el[0][0] # extract the numeric value from tuple
-        # element in which x is located
+        binnr = np.digitize(x, el_b)
+        # binning the input arguments
+        il = binnr == 1
+        ir = binnr == Nel 
+        ii = np.logical_not(np.logical_or(il, ir))
+        # logicals to treat boundary conditions 
         
-        funval = 0
-        if el == 0:
-            index = 0
-            for i in range(1, m): 
-                funval += ( cvec[index]*np.polyval( eta[i], 2*(x - el_b[el])
-                                                    /(el_b[el + 1] - el_b[el]) - 1 ) )
-                index += 1
+        funval = np.zeros(np.size(x))
+        index = np.int_(np.zeros(np.size(x)))
+        index[ii] = (binnr[ii] - 1)*d - 1 
+        index[ir] = (binnr[ir] - 1)*d - 1  
+        # the starting index for each bin to identify the coefficient of the basis function
+        
+        for i in range(len(x)):
+        
+            # left boundary:
+            if il[i] == True:
                 
-        elif el == Nel - 1:
-            index = (Nel - 1)*d - 1
-            for i in range(d): 
-                funval += ( cvec[index]*np.polyval( eta[i], 2*(x - el_b[el])
-                                                    /(el_b[el + 1] - el_b[el]) - 1 ) )
-                index += 1
+                for j in range(1, m): 
+                    funval[i] += ( cvec[index[i]]*np.polyval( eta[j], 
+                                2*(x[i] - el_b[binnr[i] - 1])
+                                /(el_b[binnr[i]] - el_b[binnr[i] - 1]) - 1. ) )
+                    index[i] += 1
+             # right boundary:
+            elif ir[i] == True:
                 
-        else:
-            index = el*d - 1
-            for i in range(m): 
-                funval += ( cvec[index]*np.polyval( eta[i], 2*(x - el_b[el])
-                                                    /(el_b[el + 1] - el_b[el]) - 1 ) )
-                index += 1
+                for j in range(d): 
+                    funval[i] += ( cvec[index[i]]*np.polyval( eta[j], 
+                                2*(x[i] - el_b[binnr[i] - 1])
+                                /(el_b[binnr[i]] - el_b[binnr[i] - 1]) - 1. ) )
+                    index[i] += 1
+            # bulk:
+            else:
+                
+                for j in range(m): 
+                    funval[i] += ( cvec[index[i]]*np.polyval( eta[j], 
+                                    2*(x[i] - el_b[binnr[i] - 1])
+                                    /(el_b[binnr[i]] - el_b[binnr[i] - 1]) - 1. ) )
+                    index[i] += 1  
                 
         return funval
     
-    return Nel, fun
+    return Nel, Nbase, fun
+    
