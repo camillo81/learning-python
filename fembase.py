@@ -6,7 +6,7 @@
        LagrangeShape : class
            The class for 1D Lagrange shape functions on the interval [-1,1].
        lag_assemb : function
-           Computes the mass and stiffness matrices from Lagrange basis functions.
+           Computes the global mass and stiffness matrices from Lagrange basis functions.
        lag_L2prod : function
            Computes the L2 scalar product of a given function with each element 
            of a basis defined from shape functions.
@@ -54,9 +54,11 @@ class LagrangeShape:
         for i in range(self.d + 1):
             condition = self.s != self.s[i]
             roots = np.compress(condition, self.s) 
-            self.eta.append(np.poly1d(roots, r=True)) # Numerator of Lagrange polynomial
+            self.eta.append(np.poly1d(roots, r=True)) 
+            # Numerator of Lagrange polynomial
             for j in range(len(roots)):
-                self.eta[i] /= self.s[i] - roots[j] # Denominator of Lagrange polynomial
+                self.eta[i] /= self.s[i] - roots[j] 
+                # Denominator of Lagrange polynomial
                 
         # derivatives of shape functions
         self.Deta = []
