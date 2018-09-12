@@ -30,50 +30,86 @@ class LagrangeShape:
         self.d : int
             Polynomial degree.
         self.s : ndarray
-            The input array pts.
+            The input array pts (knot sequence).
         self.eta : list
-            List elements are the shape functions in 'poly1d' format.
+            List elements are the Lagrange polynomials (LPs) in 'poly1d' format.
         self.Deta : list
-            List elements are the derivatives of the shape functions in 'poly1d' format.  
-        self.mass : ndarray
-            Local mass matrix.  
-        self.stiff : ndarray
-            Local stiffness matrix.
+            List elements are the derivatives of the LPs in 'poly1d' format.  
+        self.mass0 : ndarray
+            Local mass matrix of the LPs.  
+        self.stiff0 : ndarray
+            Local stiffness matrix of the LPs.
+        self.chi : list
+            List elements are the Lagrange histopolation polynomials (LHPs) in 'poly1d' format.
+        self.Dchi : list
+            List elements are the derivatives of LHPs in 'poly1d' format.  
+        self.mass1 : ndarray
+            Local mass matrix of the LHPs.  
+        self.stiff1 : ndarray
+            Local stiffness matrix of the LHPs.
     '''
     
     kind = 'lagrange'
     
     def __init__(self, pts):
         
-        # polynomial degree
         self.d = len(pts) - 1
-        # elements of the reference interval
+        # polynomial degree
+        
         self.s = pts
-        # shape functions
+        # knot sequence
+        
+        ### Lagrange polynomials (LPs):
         self.eta = [] 
         for i in range(self.d + 1):
             condition = self.s != self.s[i]
             roots = np.compress(condition, self.s) 
             self.eta.append(np.poly1d(roots, r=True)) 
-            # Numerator of Lagrange polynomial
+            # Numerator of LP
             for j in range(len(roots)):
                 self.eta[i] /= self.s[i] - roots[j] 
-                # Denominator of Lagrange polynomial
+                # Denominator of LP
                 
-        # derivatives of shape functions
+        # derivatives of LPs
         self.Deta = []
         for i in range(self.d + 1):
             self.Deta.append(np.polyder(self.eta[i]))
                 
         # mass and stiffness matrix:
-        self.mass = np.zeros((self.d + 1, self.d + 1))
-        self.stiff = np.zeros((self.d + 1, self.d + 1))
+        self.mass0 = np.zeros((self.d + 1, self.d + 1))
+        self.stiff0 = np.zeros((self.d + 1, self.d + 1))
         for i in range(self.d + 1):
             for j in range(self.d + 1): 
                 antider = np.polyint(self.eta[i]*self.eta[j])
-                self.mass[i, j] = antider(1) - antider(-1)
+                self.mass0[i, j] = antider(1) - antider(-1)
                 antider_D = np.polyint(self.Deta[i]*self.Deta[j])
-                self.stiff[i, j] = antider_D(1) - antider_D(-1)
+                self.stiff0[i, j] = antider_D(1) - antider_D(-1)
+                
+        ### Lagrange histopolation polynomials (LHPs):
+        self.chi = []
+        for i in range(self.d):
+            
+            chisum = 0
+            for j in range(i + 1, self.d + 1):
+                chisum += self.Deta[j]
+            # sum of derivatives of LPs
+
+            self.chi.append(chisum) 
+            
+        # derivatives of LHPs
+        self.Dchi = []
+        for i in range(self.d):
+            self.Dchi.append(np.polyder(self.chi[i]))
+                
+        # mass and stiffness matrix:
+        self.mass1 = np.zeros((self.d, self.d))
+        self.stiff1 = np.zeros((self.d, self.d))
+        for i in range(self.d):
+            for j in range(self.d): 
+                antider = np.polyint(self.chi[i]*self.chi[j])
+                self.mass1[i, j] = antider(1) - antider(-1)
+                antider_D = np.polyint(self.Dchi[i]*self.Dchi[j])
+                self.stiff1[i, j] = antider_D(1) - antider_D(-1)
                 
                 
 def lag_assemb(el_b, mass_eta, stiff_eta, bcs=2):
