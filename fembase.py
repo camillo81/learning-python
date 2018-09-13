@@ -158,31 +158,44 @@ def lag_assemb(el_b, mass_eta, stiff_eta, bcs=2):
     stiff = np.zeros((Nbase, Nbase))
     # initiate mass and stiffness matrix
 
-    # left boundary:
     if bcs == 2:
+        # left boundary:
         mass[:d, :d] = (el_b[1] - el_b[0])/2*mass_eta[1:, 1:]
         stiff[:d, :d] = 2/(el_b[1] - el_b[0])*stiff_eta[1:, 1:]
         index = d - 1
-    else:
-        print('Type of boundary condition not yet implemented, exiting ...')
-        return
 
-    # bulk:
-    for i in range(1, Nel - 1):
-        mass[index:index + d + 1, index:index + d + 1] += (el_b[i + 1] - el_b[i])/2*mass_eta[:, :] 
-        stiff[index:index + d + 1, index:index + d + 1] += 2/(el_b[i + 1] - el_b[i])*stiff_eta[:, :] 
-        index += d
-        # remark the '+=' in mass (stiff) for the cumulative sum for overlapping degrees of freedom
+        # bulk:
+        for i in range(1, Nel - 1):
+            mass[index:index + d + 1, index:index + d + 1] += (el_b[i + 1] - el_b[i])/2*mass_eta[:, :] 
+            stiff[index:index + d + 1, index:index + d + 1] += 2/(el_b[i + 1] - el_b[i])*stiff_eta[:, :] 
+            index += d
+            # remark the '+=' in mass (stiff) for the cumulative sum for overlapping degrees of freedom
 
-    # right boundary
-    if bcs == 2:
-        mass[index:index + d, index:index + d] += (el_b[-1] - el_b[-2])/2*mass_eta[:-1, :-1] 
-        stiff[index:index + d, index:index + d] += 2/(el_b[-1] - el_b[-2])*stiff_eta[:-1, :-1] 
-    else:
-        print('Type of boundary condition not yet implemented, exiting ...')
-        return
+        # right boundary
+        if bcs == 2:
+            mass[index:index + d, index:index + d] += (el_b[-1] - el_b[-2])/2*mass_eta[:-1, :-1] 
+            stiff[index:index + d, index:index + d] += 2/(el_b[-1] - el_b[-2])*stiff_eta[:-1, :-1] 
     
-    return Nel, Nbase, mass, stiff
+    
+        return Nel, Nbase, mass, stiff
+    
+    elif bcs == 1:
+        # bulk
+        for ie in range(0, Nel):
+            for il in range(0, d + 1):
+                for jl in range(0, d + 1):
+                    
+                    i = d*ie + il
+                    j = d*ie + jl
+                    
+                    mass[i%Nbase, j%Nbase] += (el_b[ie + 1] - el_b[ie])/2*mass_eta[il, jl]
+                    stiff[i%Nbase, j%Nbase] += 2/(el_b[ie + 1] - el_b[ie])*stiff_eta[il, jl]
+                    
+        return Nel, Nbase, mass, stiff
+    
+    else:
+        print('boundary conditions not yet implemented!')
+        return 
             
     
 def lag_L2prod(fun, eta, el_b, bcs=2):
@@ -233,58 +246,79 @@ def lag_L2prod(fun, eta, el_b, bcs=2):
     index = 0
     # index of the basis function
     
-    # left boundary:
-    i = 0
-    for j in range(1, m):
-            
-        fun1 = lambda s: fun( el_b[i] + (s + 1)/2*(el_b[i + 1] - el_b[i]) )
-        # function fun transformed to the reference element [-1, 1]
-        fun2 = lambda s: np.polyval(eta[j], s)
-        # shape function
-        
-        fun12 = lambda s: fun1(s)*fun2(s)
-        intval, foo = fixed_quad(fun12, -1, 1)
-        funbar[index] += (el_b[i + 1] - el_b[i])/2*intval
-        # integral
-        
-        if j != d:
-            index += 1
-        # If it is the last shape function (j = d), the index rests the same
-        # and the subsequent integral is added at the same position in funbar.
-    
-    # bulk:
-    for i in range(1, Nel - 1): 
-        for j in range(m):
-            
+    if bcs == 2:
+        # left boundary:
+        i = 0
+        for j in range(1, m):
+
             fun1 = lambda s: fun( el_b[i] + (s + 1)/2*(el_b[i + 1] - el_b[i]) )
             # function fun transformed to the reference element [-1, 1]
             fun2 = lambda s: np.polyval(eta[j], s)
             # shape function
-            
+
+            fun12 = lambda s: fun1(s)*fun2(s)
+            intval, foo = fixed_quad(fun12, -1, 1)
+            funbar[index] += (el_b[i + 1] - el_b[i])/2*intval
+            # integral
+
+            if j != d:
+                index += 1
+            # If it is the last shape function (j = d), the index rests the same
+            # and the subsequent integral is added at the same position in funbar.
+
+        # bulk:
+        for i in range(1, Nel - 1): 
+            for j in range(m):
+
+                fun1 = lambda s: fun( el_b[i] + (s + 1)/2*(el_b[i + 1] - el_b[i]) )
+                # function fun transformed to the reference element [-1, 1]
+                fun2 = lambda s: np.polyval(eta[j], s)
+                # shape function
+
+                fun12 = lambda s: fun1(s)*fun2(s)
+                intval, foo = fixed_quad(fun12, -1, 1)
+                funbar[index] += (el_b[i + 1] - el_b[i])/2*intval
+                # integral
+                if j != d:
+                    index += 1
+
+        # right boundary:
+        i = Nel - 1
+        for j in range(d):
+
+            fun1 = lambda s: fun( el_b[i] + (s + 1)/2*(el_b[i + 1] - el_b[i]) )
+            # function fun transformed to the reference element [-1, 1]
+            fun2 = lambda s: np.polyval(eta[j], s)
+            # shape function
+
             fun12 = lambda s: fun1(s)*fun2(s)
             intval, foo = fixed_quad(fun12, -1, 1)
             funbar[index] += (el_b[i + 1] - el_b[i])/2*intval
             # integral
             if j != d:
-                index += 1
-        
-    # right boundary:
-    i = Nel - 1
-    for j in range(d):
-            
-        fun1 = lambda s: fun( el_b[i] + (s + 1)/2*(el_b[i + 1] - el_b[i]) )
-        # function fun transformed to the reference element [-1, 1]
-        fun2 = lambda s: np.polyval(eta[j], s)
-        # shape function
-        
-        fun12 = lambda s: fun1(s)*fun2(s)
-        intval, foo = fixed_quad(fun12, -1, 1)
-        funbar[index] += (el_b[i + 1] - el_b[i])/2*intval
-        # integral
-        if j != d:
-                index += 1
+                    index += 1
+
+        return Nel, Nbase, funbar
     
-    return Nel, Nbase, funbar
+    elif bcs == 1:
+        for ie in range(0, Nel):
+            for il in range(0,d+1):
+                
+                fun1 = lambda s: fun( el_b[ie] + (s + 1)/2*(el_b[ie + 1] - el_b[ie]) )
+                # function fun transformed to the reference element [-1, 1]
+                fun2 = lambda s: np.polyval(eta[il], s)
+                # shape function
+
+                fun12 = lambda s: fun1(s)*fun2(s)
+                intval, foo = fixed_quad(fun12, -1, 1)
+                
+                i = d*ie + il
+                funbar[i%Nbase] += (el_b[ie + 1] - el_b[ie])/2*intval 
+                
+        return Nel, Nbase, funbar
+    
+    else:
+        print('boundary conditions not yet implemented')
 
 
 def lag_fun(cvec, eta, el_b, bcs=2):
@@ -355,34 +389,48 @@ def lag_fun(cvec, eta, el_b, bcs=2):
         index[ir] = (binnr[ir] - 1)*d - 1  
         # the starting index for each bin to identify the coefficient of the basis function
         
-        for i in range(len(x)):
-        
-            # left boundary:
-            if il[i] == True:
-                
-                for j in range(1, m): 
-                    funval[i] += ( cvec[index[i]]*np.polyval( eta[j], 
-                                2*(x[i] - el_b[binnr[i] - 1])
-                                /(el_b[binnr[i]] - el_b[binnr[i] - 1]) - 1. ) )
-                    index[i] += 1
-             # right boundary:
-            elif ir[i] == True:
-                
-                for j in range(d): 
-                    funval[i] += ( cvec[index[i]]*np.polyval( eta[j], 
-                                2*(x[i] - el_b[binnr[i] - 1])
-                                /(el_b[binnr[i]] - el_b[binnr[i] - 1]) - 1. ) )
-                    index[i] += 1
-            # bulk:
-            else:
-                
-                for j in range(m): 
-                    funval[i] += ( cvec[index[i]]*np.polyval( eta[j], 
+        if bcs == 2:
+            for i in range(len(x)):
+
+                # left boundary:
+                if il[i] == True:
+
+                    for j in range(1, m): 
+                        funval[i] += ( cvec[index[i]]*np.polyval( eta[j], 
                                     2*(x[i] - el_b[binnr[i] - 1])
                                     /(el_b[binnr[i]] - el_b[binnr[i] - 1]) - 1. ) )
-                    index[i] += 1  
+                        index[i] += 1
+                 # right boundary:
+                elif ir[i] == True:
+
+                    for j in range(d): 
+                        funval[i] += ( cvec[index[i]]*np.polyval( eta[j], 
+                                    2*(x[i] - el_b[binnr[i] - 1])
+                                    /(el_b[binnr[i]] - el_b[binnr[i] - 1]) - 1. ) )
+                        index[i] += 1
+                # bulk:
+                else:
+
+                    for j in range(m): 
+                        funval[i] += ( cvec[index[i]]*np.polyval( eta[j], 
+                                        2*(x[i] - el_b[binnr[i] - 1])
+                                        /(el_b[binnr[i]] - el_b[binnr[i] - 1]) - 1. ) )
+                        index[i] += 1  
+
+            return funval
+        
+        elif bcs == 1:
+            for i in range(len(x)):
                 
-        return funval
+                for j in range(0,m):
+                    
+                    index = (binnr[i] - 1)*d + j
+                    
+                    funval[i] += ( cvec[index%Nbase]*np.polyval( eta[j], 
+                                        2*(x[i] - el_b[binnr[i] - 1])
+                                        /(el_b[binnr[i]] - el_b[binnr[i] - 1]) - 1. ) )
+            return funval
+            
     
     return Nel, Nbase, fun
     
