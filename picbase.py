@@ -12,7 +12,7 @@
 
 import numpy as np
 
-def borisPush(particles, dt, Bp, Ep, q, m, L, bcs == 2):
+def borisPush(particles, dt, Bp, Ep, q, m, L, bcs = 2):
     '''Pushes the particles' velocities and positions by a time step dt.
         
     Parameters:
@@ -112,7 +112,7 @@ def fieldInterpolation(xk, el_b, shapefun, ex, ey, ez, bx, by, bz, bcs = 1):
         
         for ie in range(0, N_el):
             
-            indices == np.where(Xbin == ie)[0]
+            indices = np.where(Xbin == ie)[0]
             s = 2*(xk[indices] - el_b[ie])/(el_b[ie + 1] - el_b[ie])
             
             for il in range(0, d + 1):
@@ -159,4 +159,61 @@ def fieldInterpolation(xk, el_b, shapefun, ex, ey, ez, bx, by, bz, bcs = 1):
                 Bp[indices, 2] += bzj[i%Nbase]*bi
                 
         return Ep,Bp
+
+    
+def computeDensity(particles, q, el_b, kernel, s):
+    '''Parameters:
+        particles : ndarray
+            2D-array (Np x 4) containing the particle information (x,vx,vy,w)
+        q : float
+            The charge of the particles
+        el_b : ndarray
+            1D-array specifying the element boundaries
+        kernel : function
+            The smoothing kernel
+        s : ndarray
+            The Lagrange interpolation points on the reference element [-1,1]
+            
+        Returns:
+            rho : ndarray
+                The coefficients of the charge density
+    '''
+    Nel = len(el_b) - 1
+    # number of elements
+    
+    d = len(s) - 1
+    # degree of basis functions
+    
+    p = d + 1
+    # degree of Gauss-Legendre quadrature
+    
+    Nknots = Nel*d + 1
+    glob_s = np.zeros(Nknots)
+    # global knot vector
+    
+    for ie in range(Nel):
+        for il in range(d + 1):
+            
+            i = ie*d + il
+            glob_s[i] = el_b[ie] + (s[il] + 1)/2*(el_b[ie + 1] - el_b[ie])
+    # assemble global knot vector
+    
+    xi,wi = np.polynomial.legendre.leggauss(p)
+    # weights and quadrature points on reference element [-1,1]
+    
+    quad_points = np.zeros(p*(Nknots - 1)
+    weights = np.zeros(p*(Nknots - 1)
+    # global quadrature points and weights
+
+    for i in range(Nknots - 1):
+        a1 = glob_s[i]
+        a2 = glob_s[i+1]
+        xis = (a2 - a1)/2*xi + (a1 + a2)/2
+        quad_points[p*i:p*i + p] = xis
+        wis = (a2 - a1)/2*wi
+        weights[p*i:p*i + p] = wis
+    # assemble global quad_points and weights
+                       
+    bins = np.digitize(particles[:, 0], glob_s) - 1
+    # particle binning in global knot vector
         
