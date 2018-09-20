@@ -11,6 +11,7 @@
 
 
 import numpy as np
+from scipy import integrate
 
 def borisPush(particles, dt, Bp, Ep, q, m, L, bcs = 2):
     '''Pushes the particles' velocities and positions by a time step dt.
@@ -178,8 +179,12 @@ def computeDensity(particles, q, el_b, kernel, s):
             rho : ndarray
                 The coefficients of the charge density
     '''
+    
     Nel = len(el_b) - 1
     # number of elements
+    
+    Np = len(particles[:, 0])
+    # number of particles
     
     d = len(s) - 1
     # degree of basis functions
@@ -191,18 +196,21 @@ def computeDensity(particles, q, el_b, kernel, s):
     glob_s = np.zeros(Nknots)
     # global knot vector
     
+    rho = np.zeros(Nel*d)
+    # initialize charge density
+    
     for ie in range(Nel):
         for il in range(d + 1):
             
             i = ie*d + il
             glob_s[i] = el_b[ie] + (s[il] + 1)/2*(el_b[ie + 1] - el_b[ie])
-    # assemble global knot vector
+            # assemble global knot vector
     
     xi,wi = np.polynomial.legendre.leggauss(p)
     # weights and quadrature points on reference element [-1,1]
     
-    quad_points = np.zeros(p*(Nknots - 1)
-    weights = np.zeros(p*(Nknots - 1)
+    quad_points = np.zeros(p*(Nknots - 1))
+    weights = np.zeros(p*(Nknots - 1))
     # global quadrature points and weights
 
     for i in range(Nknots - 1):
@@ -212,8 +220,19 @@ def computeDensity(particles, q, el_b, kernel, s):
         quad_points[p*i:p*i + p] = xis
         wis = (a2 - a1)/2*wi
         weights[p*i:p*i + p] = wis
-    # assemble global quad_points and weights
+        # assemble global quad_points and weights
                        
     bins = np.digitize(particles[:, 0], glob_s) - 1
     # particle binning in global knot vector
+    
+    dx = el_b[1] - el_b[0]
+    
+    for i in range(Nel*d):
+        for j in range(Np):
+            
+            fun = lambda x: kernel(particles[j,0] - x)
+            rho[i] += 2*q/dx*particles[j,4]*integrate(fun,glob_s[i],glob_s[i+1])
+            
+    return rho
+        
         

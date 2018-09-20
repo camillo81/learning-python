@@ -213,10 +213,16 @@ def lag_assemb(el_b, mass_eta, stiff_eta, basis = 1, bcs = 2):
 
         Nbase = Nel*d
         # number of basis functions (for the respective boundary conditions)
-
-        mass = block_diag(*([mass_eta]*Nel))
-        stiff = block_diag(*([stiff_eta]*Nel))
+        
+        mass = np.zeros((Nbase, Nbase))
+        stiff = np.zeros((Nbase, Nbase))
         # initiate mass and stiffness matrix
+
+        for ie in range(Nel):
+            i = ie*d
+            
+            mass[i:(i + d), i:(i + d)] = (el_b[ie + 1] - el_b[ie])/2*mass_eta
+            stiff[i:(i + d), i:(i + d)] = (el_b[ie + 1] - el_b[ie])/2*stiff_eta
         
         return Nel, Nbase, mass, stiff
             
