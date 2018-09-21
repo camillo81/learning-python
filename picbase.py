@@ -11,7 +11,7 @@
 
 
 import numpy as np
-from scipy import integrate
+import scipy as sc
 
 def borisPush(particles, dt, Bp, Ep, q, m, L, bcs = 2):
     '''Pushes the particles' velocities and positions by a time step dt.
@@ -161,6 +161,91 @@ def fieldInterpolation(xk, el_b, shapefun, ex, ey, ez, bx, by, bz, bcs = 1):
                 
         return Ep,Bp
 
+
+    
+def assemb_S(x_p, kernel, kernel_supp, el_b, s, siz = 0):
+    '''Assembles the S-matrix with elements S_ip = S(x_i - x_p), where S is a smoothing kernel.
+
+    Parameters:
+        x_p : ndarray
+            1D-array with the particle positions.
+        kernel : function
+            The smoothing kernel. Symmetric, positive and normalized to 1.
+        kernel_supp : float
+            The size of the kernel support.
+        el_b : ndarray
+            The element boundaries including the domain boundaries.
+        s : ndarray
+            The knot vector on the reference element [-1,1].
+        siz : int
+            Switch for V1-projection: DEFAULT = 0 (no projection), 2 means S is prepared with 2 additional lines for the V1-projection.
+            
+    Returns:
+        S : sparse matrix
+            The matrix with entries S_ip.
+        x_vec : ndarray
+            The global knot vector.
+    '''
+    
+    
+    Nel = len(el_b) - 1
+    # number of elements
+    
+    Np = len(x_p)
+    # number of particles
+    
+    d = len(s) - 1
+    # degree of basis functions
+            
+    Nknots = Nel*d + 1 + siz
+    x_vec = np.zeros(Nknots)
+    # global knot vector
+    
+    if siz == 0:
+        
+        for ie in range(Nel):
+            for il in range(d + 1):
+
+                i = ie*d + il
+                x_vec[i] = el_b[ie] + (s[il] + 1)/2*(el_b[ie + 1] - el_b[ie])
+                # assemble global knot vector
+
+    elif siz == 2:
+        
+        xvec[0] = el_b[0] - kernel_supp/2
+        xvec[-1] = el_b[-1] + kernel_supp/2
+        
+        for ie in range(Nel):
+            for il in range(d + 1):
+
+                i = ie*d + il + 1
+                x_vec[i] = el_b[ie] + (s[il] + 1)/2*(el_b[ie + 1] - el_b[ie])
+                # assemble global knot vector
+                
+                
+    col = np.array([])
+    row = np.array([])
+    data = np.array([])
+    # initialize global col, row and data
+
+    for i in range(Nknots):
+
+        col_i = np.where(np.abs(x_p - x_vec[i]) < kernel_supp/2)[0]
+        row_i = np.ones(len(col_i))*i
+        data_i = kernel(x_p[col_i] - x_vec[i])
+
+        col = np.append(col, col_i)
+        row = np.append(row, row_i)
+        data = np.append(data, data_i)
+
+
+
+    S = sc.sparse.csr_matrix((data, (row, col)), shape = (Nknots, Np))
+
+    return S, x_vec
+    
+    
+    
     
 def computeDensity(particles, q, el_b, kernel, s):
     '''Parameters:
@@ -231,7 +316,7 @@ def computeDensity(particles, q, el_b, kernel, s):
         for j in range(Np):
             
             fun = lambda x: kernel(particles[j,0] - x)
-            rho[i] += 2*q/dx*particles[j,4]*integrate(fun,glob_s[i],glob_s[i+1])
+            rho[i] += 2*q/dx*particles[j,4]*sc.integrate.quad(fun,glob_s[i],glob_s[i+1])
             
     return rho
         
