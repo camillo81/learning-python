@@ -531,3 +531,45 @@ def lag_fun(cvec, eta, el_b, basis = 1, bcs = 2):
             return funval
         
         return Nel, Nbase, fun
+    
+def lag_proj(s, el_b, fun):
+    '''Projects the given function fun on the Lagrange histopolation basis.
+    
+        Parameters:
+            s : ndarray
+                local knot vector on reference element [-1,1] defining the Lagrange polynomials.
+            el_b : ndarray
+                The element boundaries.
+            fun : function
+                The function to be projected.
+                
+        Returns:
+            xvec : ndarray
+                Global knot vector
+            funvec : ndarray
+                Coefficient vector of the projected function
+    '''
+    
+    Nel = len(el_b) - 1
+    d = len(s) - 1
+    Nknots = Nel*d + 1
+    xvec = np.zeros(Nknots)
+    funvec = np.zeros(Nel*d)
+    
+    
+    for ie in range(Nel):
+        for il in range(d + 1):
+
+            i = ie*d + il
+            xvec[i] = el_b[ie] + (s[il] + 1)/2*(el_b[ie + 1] - el_b[ie])
+            # assemble global knot vector
+    
+    for ie in range(Nel):
+        jac = (el_b[ie + 1] - el_b[ie])/2
+        for il in range(d):
+            i = ie*d + il
+            funvec[i] = 1/(2*jac)*(fun(xvec[i + 1]) + fun(xvec[i]))*(xvec[i + 1] - xvec[i])
+            
+    return xvec, funvec
+        
+            
