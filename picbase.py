@@ -320,4 +320,146 @@ def computeDensity(particles, q, el_b, kernel, s):
             
     return rho
         
+
+    
+def assemb_Q(x_p, shapefun, el_b, bcs = 2, basis = 0):
+    '''Assembles the Q matrix Q_ip = phi_i(x_p) for given particle positions x_p and basis functions phi_i.
+    
+        Parameters:
+            x_p : ndarray
+                1D-array with the particle positions.
+            shapefun : Lagrangeshape object
+                The Lagrange shape functions.
+            el_b : ndarray
+                The element boundaries.
+            bcs : int
+                Boundary conditions. DEFAULT = 2 (Dirichlet), 1 (periodic)
+            basis : int
+                The type of basis functions. DEFAULT = 0 which stands for Lagrange interpolation polynomials. 1 stands for Lagrange histopolation polynomials.
+                
+        Returns:
+            Q : sparse matrix
+                The matrix with entries Q_ip.
+    '''
+    
+    Nel = len(el_b) - 1
+    # number of elements
+    
+    Np = len(x_p)
+    # number of particles
+    
+    d = shapefun.d
+    # degree of Lagrange interpolation shape functions
+    
+    Xbin = np.digitize(x_p, el_b) - 1
+    # particle binning in elements
+    
+    col = np.array([])
+    row = np.array([])
+    data = np.array([])
+    # initialize global col, row and data
+    
+    if basis == 0:
+    
+        if bcs == 2:
+
+            Nbase = Nel*d - 1
+            # number of basis functions
+
+            # left boundary
+            col_i = np.where(Xbin == 0)[0]
+            s_p = 2*(x_p[col_i] - el_b[0])/(el_b[1] - el_b[0]) - 1
+
+            for il in range(d):
+                row_i = np.ones(len(col_i))*il
+                data_i = np.polyval(shapefun.eta[1 + il], s_p)
+
+                col = np.append(col, col_i)
+                row = np.append(row, row_i)
+                data = np.append(data, data_i)
+
+            # bulk
+            for ie in range(1, Nel - 1):
+                col_i = np.where(Xbin == ie)[0]
+                s_p = 2*(x_p[col_i] - el_b[ie])/(el_b[ie + 1] - el_b[ie]) - 1
+
+                for il in range(d + 1):
+                    i = ie*d + il - 1
+                    row_i = np.ones(len(col_i))*i
+                    data_i = np.polyval(shapefun.eta[il], s_p)
+
+                    col = np.append(col, col_i)
+                    row = np.append(row, row_i)
+                    data = np.append(data, data_i)
+
+            # right boundary
+            col_i = np.where(Xbin == Nel - 1)[0]
+            s_p = 2*(x_p[col_i] - el_b[Nel - 1])/(el_b[Nel] - el_b[Nel - 1]) - 1
+
+            for il in range(d):
+                i = Nbase - d + il
+                row_i = np.ones(len(col_i))*i
+                data_i = np.polyval(shapefun.eta[il], s_p)
+
+                col = np.append(col, col_i)
+                row = np.append(row, row_i)
+                data = np.append(data, data_i)
+
+            Q = sc.sparse.csr_matrix((data, (row, col)), shape = (Nbase, Np))
+
+            return Q
         
+        if bcs == 1:
+            
+            Nbase = Nel*d
+            # number of basis functions
+            
+            for ie in range(Nel):
+                col_i = np.where(Xbin == ie)[0]
+                s_p = 2*(x_p[col_i] - el_b[ie])/(el_b[ie + 1] - el_b[ie]) - 1
+                
+                for il in range(d + 1):
+                    i = (ie*d + il)%Nbase
+                    row_i = np.ones(len(col_i))*i
+                    data_i = np.np.polyval(shapefun.eta[il], s_p)
+                    
+                    col = np.append(col, col_i)
+                    row = np.append(row, row_i)
+                    data = np.append(data, data_i)
+                    
+            Q = sc.sparse.csr_matrix((data, (row, col)), shape = (Nbase, Np))
+            
+            return Q
+        
+    elif basis == 1:
+        
+        Nbase = Nel*d
+        # number of basis functions
+        
+        for ie in range(Nel):
+            col_i = np.where(Xbin == ie)[0]
+            s_p = 2*(x_p[col_i] - el_b[ie])/(el_b[ie + 1] - el_b[ie]) - 1
+                
+            for il in range(d + 1):
+                i = ie*d + il
+                row_i = np.ones(len(col_i))*i
+                data_i = np.np.polyval(shapefun.chi[il], s_p)
+                    
+                col = np.append(col, col_i)
+                row = np.append(row, row_i)
+                data = np.append(data, data_i)
+                    
+        Q = sc.sparse.csr_matrix((data, (row, col)), shape = (Nbase, Np))
+            
+        return Q
+
+    
+    
+    
+def integrator_HE(ex, e, b, x_p, v_x, v_y, G, S, Q0, q, m, dt):
+    
+    bnew = b - dt*np.dot(G, e)
+    v_xnew = v_x + dt*q/m*S.transpose().dot(ex)
+    v_ynew = v_y + dt*q/m*Q0.transpose().dot(e)
+    
+    return ex, e, bnew, x_p, v_xnew, v_ynew
