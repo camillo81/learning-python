@@ -163,7 +163,7 @@ def fieldInterpolation(xk, el_b, shapefun, ex, ey, ez, bx, by, bz, bcs = 1):
 
 
     
-def assemb_S(x_p, kernel, kernel_supp, el_b, s, siz = 0):
+def assemb_S(x_p, kernel, kernel_supp, el_b, s, bcs = 1, siz = 0):
     '''Assembles the S-matrix with elements S_ip = S(x_i - x_p), where S is a smoothing kernel.
 
     Parameters:
@@ -177,6 +177,8 @@ def assemb_S(x_p, kernel, kernel_supp, el_b, s, siz = 0):
             The element boundaries including the domain boundaries.
         s : ndarray
             The knot vector on the reference element [-1,1].
+        bcs : int
+            Boundary conditions: DEFAULT = 1 which stands for periodic boundary conditions
         siz : int
             Switch for V1-projection: DEFAULT = 0 (no projection), 2 means S is prepared with 2 additional lines for the V1-projection.
             
@@ -190,6 +192,9 @@ def assemb_S(x_p, kernel, kernel_supp, el_b, s, siz = 0):
     
     Nel = len(el_b) - 1
     # number of elements
+    
+    L = el_b[-1] - el_b[0]
+    # domain length
     
     Np = len(x_p)
     # number of particles
@@ -228,11 +233,30 @@ def assemb_S(x_p, kernel, kernel_supp, el_b, s, siz = 0):
     data = np.array([])
     # initialize global col, row and data
 
-    for i in range(Nknots):
+    for i in range(Nknots - bcs):
 
         col_i = np.where(np.abs(x_p - x_vec[i]) < kernel_supp/2)[0]
-        row_i = np.ones(len(col_i))*i
         data_i = kernel(x_p[col_i] - x_vec[i])
+        
+        if np.abs(x_vec[i] - x_vec[0]) <= kernel_supp/2:
+            col_i2 = np.where(np.abs(x_p - L - x_vec[i]) < kernel_supp/2)[0]
+            data_i2 = kernel(x_p[col_i2] - L - x_vec[i])
+            
+            col_i = np.append(col_i, col_i2)
+            data_i = np.append(data_i, data_i2)
+            
+        elif np.abs(x_vec[i] - x_vec[-1]) <= kernel_supp/2:
+            col_i3 = np.where(np.abs(x_p + L - x_vec[i]) < kernel_supp/2)[0]
+            data_i3 = kernel(x_p[col_i3] + L - x_vec[i])
+            
+            col_i = np.append(col_i, col_i3)
+            data_i = np.append(data_i, data_i3)
+            
+            
+        
+       
+        row_i = np.ones(len(col_i))*i
+        
 
         col = np.append(col, col_i)
         row = np.append(row, row_i)
@@ -240,7 +264,7 @@ def assemb_S(x_p, kernel, kernel_supp, el_b, s, siz = 0):
 
 
 
-    S = sc.sparse.csr_matrix((data, (row, col)), shape = (Nknots, Np))
+    S = sc.sparse.csr_matrix((data, (row, col)), shape = (Nknots - bcs, Np))
 
     return S, x_vec
     
@@ -421,7 +445,7 @@ def assemb_Q(x_p, shapefun, el_b, bcs = 2, basis = 0):
                 for il in range(d + 1):
                     i = (ie*d + il)%Nbase
                     row_i = np.ones(len(col_i))*i
-                    data_i = np.np.polyval(shapefun.eta[il], s_p)
+                    data_i = np.polyval(shapefun.eta[il], s_p)
                     
                     col = np.append(col, col_i)
                     row = np.append(row, row_i)
@@ -443,7 +467,7 @@ def assemb_Q(x_p, shapefun, el_b, bcs = 2, basis = 0):
             for il in range(d + 1):
                 i = ie*d + il
                 row_i = np.ones(len(col_i))*i
-                data_i = np.np.polyval(shapefun.chi[il], s_p)
+                data_i = np.polyval(shapefun.chi[il], s_p)
                     
                 col = np.append(col, col_i)
                 row = np.append(row, row_i)
@@ -452,14 +476,3 @@ def assemb_Q(x_p, shapefun, el_b, bcs = 2, basis = 0):
         Q = sc.sparse.csr_matrix((data, (row, col)), shape = (Nbase, Np))
             
         return Q
-
-    
-    
-    
-def integrator_HE(ex, e, b, x_p, v_x, v_y, G, S, Q0, q, m, dt):
-    
-    bnew = b - dt*np.dot(G, e)
-    v_xnew = v_x + dt*q/m*S.transpose().dot(ex)
-    v_ynew = v_y + dt*q/m*Q0.transpose().dot(e)
-    
-    return ex, e, bnew, x_p, v_xnew, v_ynew
