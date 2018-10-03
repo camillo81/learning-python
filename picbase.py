@@ -476,3 +476,40 @@ def assemb_Q(x_p, shapefun, el_b, bcs = 2, basis = 0):
         Q = sc.sparse.csr_matrix((data, (row, col)), shape = (Nbase, Np))
             
         return Q
+    
+def spline_parts(p, dS):
+    '''Returns the piecewise polynomials of a B-spline of degree p as a list of callable functions on the intervall [0, dS].
+    
+        Parameters:
+            p : int
+                Spline degree.
+            dS : float
+                Width of one knot interval. The spline support is [-(p + 1)/2*dS, (p + 1)/2*dS].
+                
+        Returns:
+            poly_list : list
+                The piecewise polynomials of a B-spline of degree p as a list of callable functions on the intervall [0, dS].
+            knots : ndarray
+                Knot vector.
+    '''
+    poly_list = []
+    knots = np.linspace(-(p + 1)/2*dS, (p + 1)/2*dS, p + 2)
+    
+    if p == 1:
+        poly_list.append(lambda x : (x/dS)/dS)
+        poly_list.append(lambda x : (-x/dS + 1)/dS)
+        
+        
+    elif p == 2:
+        poly_list.append(lambda x : ((x/dS)**2/2)/dS)
+        poly_list.append(lambda x : (-(x/dS)**2 + x/dS + 1/2)/dS)
+        poly_list.append(lambda x : ((x/dS)**2/2 - x/dS + 1/2)/dS)
+        
+    elif p == 3:
+        poly_list.append(lambda x : ((x/dS)**3/6)/dS)
+        poly_list.append(lambda x : (-(x/dS)**3/2 + (x/dS)**2/2 + x/dS/2 + 1/6)/dS)
+        poly_list.append(lambda x : ((x/dS)**3/2 - (x/dS)**2 + 2/3)/dS)
+        poly_list.append(lambda x : (-(x/dS)**3/6 + (x/dS)**2/2 - x/dS/2 + 1/6)/dS)
+        
+    return poly_list, knots
+                
