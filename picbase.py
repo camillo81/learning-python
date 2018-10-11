@@ -464,7 +464,7 @@ def assemb_Q(x_p, shapefun, el_b, bcs = 2, basis = 0):
             col_i = np.where(Xbin == ie)[0]
             s_p = 2*(x_p[col_i] - el_b[ie])/(el_b[ie + 1] - el_b[ie]) - 1
                 
-            for il in range(d + 1):
+            for il in range(d):
                 i = ie*d + il
                 row_i = np.ones(len(col_i))*i
                 data_i = np.polyval(shapefun.chi[il], s_p)
@@ -491,7 +491,11 @@ def spline_parts(p, dS):
                 The piecewise polynomials of a B-spline of degree p as a list of callable functions on the intervall [0, dS].
             knots : ndarray
                 Knot vector.
+            kernel : callable
+                The B-spline defined on the entire support.
     '''
+    
+    
     poly_list = []
     knots = np.linspace(-(p + 1)/2*dS, (p + 1)/2*dS, p + 2)
     
@@ -510,6 +514,19 @@ def spline_parts(p, dS):
         poly_list.append(lambda x : (-(x/dS)**3/2 + (x/dS)**2/2 + x/dS/2 + 1/6)/dS)
         poly_list.append(lambda x : ((x/dS)**3/2 - (x/dS)**2 + 2/3)/dS)
         poly_list.append(lambda x : (-(x/dS)**3/6 + (x/dS)**2/2 - x/dS/2 + 1/6)/dS)
+     
+    
+    def kernel(x):
+        bins = np.digitize(x, knots) - 1
         
-    return poly_list, knots
+        val = np.zeros(len(x))
+        
+        for ie in range(p + 1):
+            ind_x = np.where(ie == bins)[0]
+            val[ind_x] = poly_list[ie](x[ind_x] - knots[ie])
+            
+        return val
+        
+        
+    return poly_list, knots, kernel
                 
