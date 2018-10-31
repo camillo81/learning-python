@@ -18,25 +18,21 @@ def integrator_HE(ex, ey, bx, by, yx, yy, vx, vy, G, Q0, eps0, wpe, qe, me, dt):
 
 def integrator_HB(ex, ey, bx, by, mass_0_inv, G, mass_1, c, dt):
     
-    ex_new = ex + dt*c**2*np.dot(mass_0_inv, np.dot(np.transpose(G), np.dot(mass_1, by)))
-    ey_new = ey - dt*c**2*np.dot(mass_0_inv, np.dot(np.transpose(G), np.dot(mass_1, bx)))
+    mat = np.dot(mass_0_inv, np.dot(np.transpose(G), mass_1)) 
+    ex_new = ex + dt*c**2*np.dot(mat, by)
+    ey_new = ey - dt*c**2*np.dot(mat, bx)
     
     return ex_new, ey_new
 
 
-def integrator_HY(ex, ey, yx, yy, eps0, wce, t, tn):
-    
-    c_1 = np.sin(wce*tn)
-    c_2 = np.cos(wce*tn)
-    B = (yy + c_1/c_2*yx)/(c_2 + c_1**2/c_2)
-    A = 1/c_2*(yx - B*c_1)
+def integrator_HY(ex, ey, yx, yy, eps0, wce, dt):
     
     
-    ex_new = ex - 1/(eps0*wce)*(A*np.sin(wce*t) - B*np.cos(wce*t) - A*c_1 + B*c_2)
-    ey_new = ey - 1/(eps0*wce)*(B*np.sin(wce*t) + A*np.cos(wce*t) - B*c_1 - A*c_2)
+    ex_new = ex - 1/(eps0*wce)*(yx*np.sin(wce*dt) - yy*np.cos(wce*dt) + yy)
+    ey_new = ey - 1/(eps0*wce)*(yy*np.sin(wce*dt) + yx*np.cos(wce*dt) - yx)
     
-    yx_new = A*np.cos(wce*t) + B*np.sin(wce*t)
-    yy_new = B*np.cos(wce*t) - A*np.sin(wce*t)
+    yx_new = yx*np.cos(wce*dt) + yy*np.sin(wce*dt)
+    yy_new = yy*np.cos(wce*dt) - yx*np.sin(wce*dt)
     
     return ex_new, ey_new, yx_new, yy_new
 
