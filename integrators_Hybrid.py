@@ -36,7 +36,7 @@ def integrator_HY(ex, ey, yx, yy, eps0, wce, dt):
     return ex_new, ey_new, yx_new, yy_new
 
 
-def integrator_Hx(ex, vx, vy, vz, Q0, W, By, mass_0_inv, eps0, qe, me, wce, dt):
+def integrator_Hx(ex, vx, vy, vz, Q0, By, W, mass_0_inv, eps0, qe, me, wce, dt):
     
     ex_new = ex - dt*qe/eps0*np.dot(mass_0_inv, Q0.dot(W.dot(vx)))
     
@@ -47,13 +47,55 @@ def integrator_Hx(ex, vx, vy, vz, Q0, W, By, mass_0_inv, eps0, qe, me, wce, dt):
     return ex_new, vy_new, vz_new
 
 
-def integrator_Hy(ey, vx, vy, vz, Q0, W, Bx, mass_0_inv, eps0, qe, me, wce, dt):
+def integrator_Hx_new(ex, vx, vy, vz, Q0, By, mass_0_inv, eps0, qe, me, wce, nh, wpar, wperp, Np, w0, g0, dt):
+    
+    vy_new = vy - dt*wce*vx
+    vz_new = vz + dt*qe/me*By.dot(vx)
+    
+    a_int = wpar
+    b_int = vz
+    c_int = qe/me*By.dot(vx)
+    d_int = wperp
+    e_int = vy
+    f_int = -wce*vx
+    
+    w_int = w0*dt/Np + nh/((2*np.pi)**(3/2)*wpar*wperp**2)*1/(g0*Np)*np.exp(-vx**2/(2*wperp**2))*np.sqrt(np.pi/2)*a_int*d_int/np.sqrt(a_int**2*f_int**2 + c_int**2*d_int**2)*np.exp(-(c_int*e_int - b_int*f_int)**2/(2*(a_int**2*f_int**2 + c_int**2*d_int**2)))*(sc.special.erf((a_int**2*e_int*f_int + b_int*c_int*d_int**2)/(np.sqrt(2)*a_int*d_int*np.sqrt(a_int**2*f_int**2 + c_int**2*d_int**2))) - sc.special.erf((a_int**2*f_int*(e_int + dt*f_int) + b_int*c_int*d_int**2 + c_int**2*d_int**2*dt)/(np.sqrt(2)*a_int*d_int*np.sqrt(a_int**2*f_int**2 + c_int**2*d_int**2))))
+    
+    W_int = sc.sparse.csr_matrix((w_int, (np.arange(Np), np.arange(Np))), shape = (Np, Np))
+    
+    ex_new = ex - qe/eps0*np.dot(mass_0_inv, Q0.dot(W_int.dot(vx)))
+    
+    return ex_new, vy_new, vz_new
+
+
+def integrator_Hy(ey, vx, vy, vz, Q0, Bx, W, mass_0_inv, eps0, qe, me, wce, dt):
     
     ey_new = ey - dt*qe/eps0*np.dot(mass_0_inv, Q0.dot(W.dot(vy)))
-    
+
     vx_new = vx + dt*wce*vy
     
     vz_new = vz - dt*qe/me*Bx.dot(vy)
+    
+    return ey_new, vx_new, vz_new
+
+
+def integrator_Hy_new(ey, vx, vy, vz, Q0, Bx, mass_0_inv, eps0, qe, me, wce, nh, wpar, wperp, Np, w0, g0, dt):
+    
+    vx_new = vx + dt*wce*vy
+    vz_new = vz - dt*qe/me*Bx.dot(vy)
+    
+    a_int = wpar
+    b_int = vz
+    c_int = -qe/me*Bx.dot(vy)
+    d_int = wperp
+    e_int = vx
+    f_int = wce*vy
+    
+    w_int = w0*dt/Np + nh/((2*np.pi)**(3/2)*wpar*wperp**2)*1/(g0*Np)*np.exp(-vy**2/(2*wperp**2))*np.sqrt(np.pi/2)*a_int*d_int/np.sqrt(a_int**2*f_int**2 + c_int**2*d_int**2)*np.exp(-(c_int*e_int - b_int*f_int)**2/(2*(a_int**2*f_int**2 + c_int**2*d_int**2)))*(sc.special.erf((a_int**2*e_int*f_int + b_int*c_int*d_int**2)/(np.sqrt(2)*a_int*d_int*np.sqrt(a_int**2*f_int**2 + c_int**2*d_int**2))) - sc.special.erf((a_int**2*f_int*(e_int + dt*f_int) + b_int*c_int*d_int**2 + c_int**2*d_int**2*dt)/(np.sqrt(2)*a_int*d_int*np.sqrt(a_int**2*f_int**2 + c_int**2*d_int**2))))
+    
+    W_int = sc.sparse.csr_matrix((w_int, (np.arange(Np), np.arange(Np))), shape = (Np, Np))
+    
+    ey_new = ey - qe/eps0*np.dot(mass_0_inv, Q0.dot(W_int.dot(vy)))
     
     return ey_new, vx_new, vz_new
 
