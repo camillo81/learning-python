@@ -11,8 +11,8 @@ The low-level routines feature:
 
 The STRUPHY code features:
 
-- Linear MHD equations with nonlinear coupling to full-orbit Vlasov equation (6D)
-- Exact conservation of div**B**=0 and oh magnetic helicity, reagardless of grid spacing and mapping
+- Linear MHD equations with nonlinear coupling to full-orbit Vlasov equation (6D), current-coupling approach
+- Exact conservation of div **B**=0 and oh magnetic helicity, reagardless of grid spacing and mapping
 - Exact energy balance, reagardless of grid spacing and mapping
 - Implicit time stepping
 
