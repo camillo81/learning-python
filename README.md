@@ -8,7 +8,9 @@ The STRUPHY code features:
 - Regular C<sup>1</sup>-mappings to single patch
 - Exact conservation of div**B**=0 and of magnetic helicity, reagardless of grid spacing and mapping
 - Exact energy balance, reagardless of grid spacing and mapping
+- Control variate method for PIC (optional)
 - Implicit time stepping
+- OpenMP parallelization of PIC
 
 The low-level routines feature:
 
