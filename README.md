@@ -4,9 +4,9 @@ The STRUPHY (STRUcture-Preserving HYbrid) code simulates kinetic-MHD (magneto-hy
 
 The low-level routines feature:
 
-- B-spline bases of degree $k<5$ and commuting projectors for the 3D de Rham complex
+- B-spline bases of degree k<5 and commuting projectors for the 3D de Rham complex
 - Periodic and Dirichlet boundary conditions
-- Regular $C^1$-mappings to single patch
+- Regular C<sup>1</sup>-mappings to single patch
 - Local projection operators (quasi-interpolation)
 
 The STRUPHY code features:
