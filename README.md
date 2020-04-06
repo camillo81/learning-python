@@ -1,10 +1,22 @@
-# STRUPHY (STRUcture-Preserving HYbrid) code
+# Welcome to STRUPHY 
 
-STRUPHY is a project for simulating kinetic-MHD (magneto-hydrodynamic) hybrid models of variuos flavours using conforming finite element methods (cFEM).
+The STRUPHY (STRUcture-Preserving HYbrid) code simulates kinetic-MHD (magneto-hydrodynamic) hybrid models of variuos flavours, combining conforming finite element methods (finite element exterior calculus, FEEC) with particle-in-cell (PIC) methods.
+
+The low-level routines feature:
+
+- B-spline bases of degree $k<5$ and commuting projectors for the 3D de Rham complex
+- Periodic and Dirichlet boundary conditions
+- Regular $C^1$-mappings to single patch
+- Local projection operators (quasi-interpolation)
+
+The STRUPHY code features:
+
+- Linear MHD equations with nonlinear coupling to full-orbit Vlasov equation
+- Implicit time stepping
 
 ## Getting Started
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
+These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. 
 
 ### Prerequisites
 
