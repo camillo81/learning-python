@@ -1,24 +1,3 @@
-# Welcome to STRUPHY 
-
-The STRUPHY (STRUcture-Preserving HYbrid) code simulates kinetic-MHD (magneto-hydrodynamic) hybrid models of variuos flavours, combining conforming finite element methods (finite element exterior calculus, FEEC) with particle-in-cell (PIC) methods.
-
-The STRUPHY code features:
-
-- Linear, ideal MHD equations with nonlinear coupling to full-orbit Vlasov equation (6D), current-coupling approach
-- Regular C<sup>1</sup>-mappings to single patch
-- Exact conservation of div**B**=0 and of magnetic helicity, reagardless of grid spacing and mapping
-- Exact energy balance, reagardless of grid spacing and mapping
-- Control variate method for PIC (optional)
-- Implicit time stepping
-- OpenMP parallelization of PIC
-
-The low-level routines feature:
-
-- B-spline bases of and commuting projectors for the 3D de Rham complex
-- Periodic and Dirichlet boundary conditions
-- Local projection operators (quasi-interpolation)
-
-
 ## Getting Started
 
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. 
